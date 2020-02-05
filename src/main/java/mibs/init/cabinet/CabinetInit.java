@@ -3,6 +3,7 @@
  */
 package mibs.init.cabinet;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -18,17 +19,25 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import javax.swing.AbstractButton;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile;
@@ -41,140 +50,180 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 
-public class CabinetInit extends JPanel implements ActionListener {
+public class CabinetInit extends JFrame implements ActionListener, Commands {
 
-	protected static final String CMD_INIT_CABINET = "INIT";
-	protected static final String CMD_INITIALIZED	= "INITIALIZED";
-	protected static final String CMD_ADD_CONCLUSION = "ADD";
-	protected static final String CMD_PROLONG_CABINET = "PROLONG";
-	protected static final String CMD_BLOCK_CABINET = "BLOCK";
-	protected static final String CMD_PING = "PING";
-
-	private static final String DST_PATH = "/home/admin2/temp10/";
-	int i = 0;
-
+	private static final long serialVersionUID = 1L;
+	private JPanel panel = new JPanel();
+	private JLabel lb1 =  new JLabel();;
+	private JLabel lb2 = new JLabel();
+	
+	private JLabel labelFirstName = new JLabel();
+	private JLabel labelSecondName = new JLabel();
+	private JLabel labelLastName = new JLabel();
+	private JLabel labelBirthday = new JLabel();
+	private JLabel labelEmail = new JLabel();
+	
+	private JTextField textFirstName = new JTextField();
+	private JTextField textSecondName = new JTextField();
+	private JTextField textLastName = new JTextField();
+	private JTextField textBirthday  = new JTextField();
+	private JTextField textEmail  = new JTextField();
+	
+	private JButton b1, b2, b3, b4;
+	private Channel channel = null;
+	private Connection connection = null;
+	
 	public String getGreeting() {
 		return "Hello world.";
 	}
-
-	Channel channel = null;
-	Connection connection = null;
-
 	public CabinetInit() {
-		lb1 = new JLabel("Rabbitmq connection state: not connected");
-		lb2 = new JLabel("Command result:");
-		b1 = new JButton("Add Dicom");
-	//	b2.setVerticalTextPosition(AbstractButton.BOTTOM);
-	//	b2.setHorizontalTextPosition(AbstractButton.CENTER);
-	
-		b2 = new JButton("Add Dicom");
 		
-		GroupLayout layout = new GroupLayout(this);
-		setLayout(layout);
+		super(bundle.getString(MAIN_CAPTION));
+		
+		initResponceCommands( lb2 );
+		
+		
+		init();
+		
+		b1 = new JButton(bundle.getString(BUTTON_INIT_CABINET));
+		b1.setActionCommand(CMD_INIT_CABINET);
+		b1.addActionListener(this);
+		
+		
+		b2 = new JButton(bundle.getString(BUTTON_ADD_CONCLUSION));
+		b2.setActionCommand(CMD_ADD_CONCLUSION);
+		b2.addActionListener(this);
+		
+		b3 = new JButton("Add Dicom");
+		b3.setActionCommand("Add_Dicom3");
+		b3.addActionListener(this);
+		
+		b4 = new JButton("Add Dicom again ");
+		b4.setActionCommand("Add_Dicom4");
+		b4.addActionListener(this);
+		
+		
+		GroupLayout layout = new GroupLayout(panel);
+		panel.setLayout(layout);
 		layout.setAutoCreateGaps(true);
 		layout.setAutoCreateContainerGaps(true);
-		layout.setHorizontalGroup(layout.createParallelGroup()
-				      .addComponent(lb1)
-				      .addGroup(layout.createSequentialGroup()
-				    		  .addComponent(b1)	
-				    		  .addComponent(b2)	  
-				    		  )
-				      .addComponent(lb2)
-		);
-		layout.setVerticalGroup(
-				   layout.createSequentialGroup()
-				   .addComponent(lb1)
-				   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-				           .addComponent(b1)
-				           .addComponent(b2)
-				           )
-				   .addComponent(lb2)
-				);
-
 		
+		layout.setHorizontalGroup(layout.createParallelGroup(  )
+			      .addComponent(lb1)
+			      .addGroup(layout.createSequentialGroup()
+			    		  .addGroup(layout.createParallelGroup( )
+			    				  .addComponent(labelFirstName)	
+			    	    		  .addComponent(labelSecondName)
+			    	    		  .addComponent(labelLastName)	
+			    	    		  .addComponent(labelBirthday)
+			    	    		  .addComponent(labelEmail)
+			    			 )
+			    		  .addGroup(layout.createParallelGroup(  )
+			    				  .addComponent(textFirstName)	
+			    	    		  .addComponent(textSecondName)
+			    	    		  .addComponent(textLastName)	
+			    	    		  .addComponent(textBirthday)
+			    	    		  .addComponent(textEmail)
+			    			 )
+			    		  )
+			      .addComponent(lb2)
+			      .addGroup(layout.createSequentialGroup()
+			    		  .addComponent(b1)	
+			    		  .addComponent(b2)	  
+			    		  .addComponent(b3)	  
+			    		  .addComponent(b4)	  
+			    		  )
+			     
+	);
+	layout.setVerticalGroup(layout.createSequentialGroup()
+			   .addComponent(lb1)
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+					  .addComponent(labelFirstName)	
+					  .addComponent(textFirstName)
+					  
+				)
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+					  .addComponent(labelSecondName)	
+					  .addComponent(textSecondName)	  
+					  
+				)
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+			   
+					  .addComponent(labelLastName)	
+					   .addComponent(textLastName)	
+				 )
+			   
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+					   .addComponent(labelBirthday)	
+	    	    	   .addComponent(textBirthday)
+					 
+				  )
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+					   .addComponent(labelEmail)	
+	    	    	   .addComponent(textEmail)
+					 
+				  )
+			   .addComponent(lb2)
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+			           .addComponent(b1)
+			           .addComponent(b2)
+			           .addComponent(b3)
+			           .addComponent(b4)
+			           )
+			  
+			);
+
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		panel.setOpaque(true);
+		setContentPane(panel);
+		setSize(new Dimension(600, 250));
+	//	pack();
+		setVisible(true);
 		
-	
-/*		b1 = new JButton("Connect");
-		b1.setVerticalTextPosition(AbstractButton.CENTER);
-		b1.setHorizontalTextPosition(AbstractButton.LEADING); // aka LEFT, for left-to-right locales
-		b1.setActionCommand("connect");
-
-		b2 = new JButton("Add Dicom");
-		b2.setVerticalTextPosition(AbstractButton.BOTTOM);
-		b2.setHorizontalTextPosition(AbstractButton.CENTER);
-		b2.setActionCommand("add_dicom");
-
-		b3 = new JButton("Zip");
-		b3.setActionCommand("zip");
-
-		b4 = new JButton("UnZip");
-		b4.setActionCommand("unzip");
-
-		b5 = new JButton("New Cabinet");
-		b5.setActionCommand("create_new_cabinet");
-
-		b1.addActionListener(this);
-		b2.addActionListener(this);
-		b3.addActionListener(this);
-		b4.addActionListener(this);
-		b5.addActionListener(this);
-
-		add(lb1);
-		add(b1);
-		add(b5);
-		add(b2);
-		add(b3);
-		add(b4);
-*/
+		try {
+			init_rabbitmq_connection_and_subscribe( host ,login ,password);
+			initActionCommands( channel, lb2 );
+			lb1.setText("Connection to host " + host + " is active ");
+			lb1.setForeground(Color.black);
+		} catch (IOException e) {
+			lb1.setText("Connection to message queue is not active");
+			lb1.setForeground(Color.red);
+		} catch (TimeoutException e) {
+			lb1.setText("Connection to message queue is not active");
+			lb1.setForeground(Color.red);
+		}
+		
 	}
 
 	private static final String EXCHANGE_NAME = "amq.direct";
 	private static final String SRC_PATH = "/home/admin2/storage/DICOM/1554293765-8E26DF76/temp";
-	protected JButton b1, b2, b3, b4, b5;
-	protected JLabel lb1, lb2;
+
+	
 	public static void main(String[] args) {
-		CabinetInit cbi = new CabinetInit();
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
-				cbi.createAndShowGUI();
+				new CabinetInit();
 			}
 		});
 	}
 
-	private  void createAndShowGUI() {
-
+	private void init() {
+		labelFirstName.setText( bundle.getString(FIRST_NAME) + ":" );
+		labelSecondName.setText( bundle.getString(SECOND_NAME) +":" );
+		labelLastName.setText( bundle.getString(LAST_NAME) +":" );
+		labelBirthday.setText( bundle.getString(BIRTHDAY) +":" );
+		labelEmail.setText( bundle.getString(EMAIL) +":" );
 		
-		JFrame frame = new JFrame("Cabinet Commands");
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		CabinetInit newContentPane = new CabinetInit();
-		newContentPane.setOpaque(true); // content panes must be opaque
-		frame.setContentPane(newContentPane);
-		frame.setSize(new Dimension(600, 250));
-		// Display the window.
-		//frame.pack();
-		frame.setVisible(true);
+		textFirstName.setText( "Petrov" );
+		textSecondName.setText( "Ivan" );
+		textLastName.setText( "Ivanovich" );
+		textBirthday.setText( "1991" );
+		textEmail.setText( "bonobo@mail.dot.com" );
 		
-		try {
-			init_rabbitmq_connection_and_subscribe("172.16.29.255","admin2","kukla");
+		lb2.setText("Cabinet state:");
 		
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (TimeoutException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
-	
-	/**
-	 * Initialize Rabbitmq connection and subscibe to local queue
-	 * @param host     ip address or hostname for rabbitmq service
-	 * @param user     use name for rabbitmq access
-	 * @param password password for rabbitmq access
-	 * @throws IOException
-	 * @throws TimeoutException
-	 */
-	private void init_rabbitmq_connection_and_subscribe(String host, String user, String password)
+	private  void init_rabbitmq_connection_and_subscribe(String host, String user, String password)
 			throws IOException, TimeoutException {
 
 		ConnectionFactory factory = new ConnectionFactory();
@@ -184,57 +233,16 @@ public class CabinetInit extends JPanel implements ActionListener {
 		factory.setPort( 5672 );
 		connection = factory.newConnection();
 		channel = connection.createChannel();
-
 		channel.queueDeclare("localin", true, false, false, null);
 		channel.queueDeclare("localout", true, false, false, null);
 
 		DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-			
 			RabbitmqCommandMessage<?> msg = (RabbitmqCommandMessage<?>) SerializationUtils.deserialize(delivery.getBody());
-			
-			String cmd = msg.getCommand();
-			System.out.println( msg );
-			switch( cmd ){
-				case CMD_INITIALIZED : System.out.println("Cabinet initialized "); break;
-				
-				
-			}
-			Person p = (Person) msg.getContent();
-			System.out.println( msg );
-			
-	//		 commands.get(msg.getCommand()).accept(msg);
+			responceCommands.get( msg.getCommand() ).accept( (RabbitmqCommandMessage<Person>) msg );
 		};
-
 		channel.basicConsume("localout", true, deliverCallback, consumerTag -> {});
 
 		System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
-	}
-	/**
-	 * 
-	 * @param firstName
-	 * @param secondName
-	 * @param serName
-	 * @param date
-	 * @param email
-	 * @throws IOException
-	 * @throws TimeoutException
-	 */
-	private void create_new_cabinet(String firstName, String secondName, String serName, String date, String email)  {
-		
-		Person person = new Person( firstName, secondName, serName, date, email );
-
-		RabbitmqCommandMessage<Person> cmd = new RabbitmqCommandMessage<>(CMD_INIT_CABINET,  person);
-
-		byte[] rc = SerializationUtils.serialize(cmd);
-
-		try {
-			channel.basicPublish("", "localin", null, rc );
-		
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
 	}
 	private void make7Z() throws IOException {
 
@@ -269,45 +277,12 @@ public class CabinetInit extends JPanel implements ActionListener {
 			}
 
 		});
-
-		System.out.println(" Total messages'" + i + "'");
-
 	}
-
-	private void testComress() {
-
-	}
-
-	
-
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		switch (e.getActionCommand()) {
-	
-		case "add_dicom": {
-			try {
-				make7Z();
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			break;
-
-		}
-		case "zip": {
-			testComress();
-			System.out.println("zip");
-			break;
-		}
-		case "unzip": {
-			System.out.println("unzip");
-			break;
-		}
-		case "create_new_cabinet": {
-			create_new_cabinet("Jhon", "Dir","Zippo","12-01-02 1998", "bobo@bubu.com");
-			break;
-			}
-		}
-
+		String command = e.getActionCommand();
+		Person person = new Person(textFirstName.getText(),textSecondName.getText(), textLastName.getText(), textBirthday.getText(), textEmail.getText());
+		RabbitmqCommandMessage<Person> msg = new RabbitmqCommandMessage<>( command, person);
+		actionCommands.get( command ).accept( msg );
 	}
 }
