@@ -3,8 +3,13 @@
  */
 package mibs.init.cabinet;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.ComponentOrientation;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.ByteArrayInputStream;
@@ -16,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +38,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import javax.swing.AbstractButton;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -51,34 +59,60 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 
-public class CabinetInit extends JFrame implements ActionListener, Commands {
+public class CabinetInit extends JFrame implements ActionListener, QueueHandler {
 
 	private static final long serialVersionUID = 1L;
+	
+	private static final int textWidth = 240;
+	private static final int textHeight= 24;
 	
 	private static final String EXCHANGE_NAME = "amq.direct";
 	private static final String SRC_PATH = "/home/admin2/storage/DICOM/1554293765-8E26DF76/temp";
 	
+
+	private JPanel statusBar = new JPanel( new FlowLayout(FlowLayout.LEFT)  );
+	
 	private JPanel panel = new JPanel();
+	private JPanel toolBarPanel = new JPanel( );
+	private JPanel panel0 = new JPanel(new FlowLayout(FlowLayout.LEFT) );
+	private CPanel panel1 = new CPanel( );
+	private CPanel panel2 = new CPanel();
+	
+	private List<CPanel> panels = new ArrayList<>();
+	private List<JButton> buttons = new ArrayList<>();
+	
 	
 	private JLabel lb1 =  new JLabel();;
 	private JLabel lb2 = new JLabel();
 	
 	private JLabel labelFirstName = new JLabel();
-	private JLabel labelSecondName = new JLabel();
+	private JLabel labelPatronymic = new JLabel();
 	private JLabel labelLastName = new JLabel();
 	private JLabel labelBirthday = new JLabel();
+	
 	private JLabel labelEmail = new JLabel();
+	private JLabel labelEmail2 = new JLabel();
+	
+	private JLabel labelConclusion = new JLabel();
+	private JLabel labelExploration = new JLabel();
+	private JLabel labelExplorationID = new JLabel();
 	
 	private JTextField textFirstName = new JTextField();
-	private JTextField textSecondName = new JTextField();
+	private JTextField textPatronymic = new JTextField();
 	private JTextField textLastName = new JTextField();
 	private JTextField textBirthday  = new JTextField();
+	
 	private JTextField textEmail  = new JTextField();
+	private JTextField textEmail2  = new JTextField();
 	
-	private JPanel panel1 = new JPanel();
-	private JPanel panel2 = new JPanel();
+	private JTextField textConclusion  = new JTextField();
+	private JTextField textExploration  = new JTextField();
+
+	private JTextField textExplorationID  = new JTextField();
 	
-	private JButton b1, b2, b3, b4;
+	
+	private JButton b1, b2, b3, b4, b5;
+	private JButton sendButton1, sendButton2, sendButton3, sendButton4;
 	
 	private Channel channel = null;
 	private Connection connection = null;
@@ -94,11 +128,12 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 		panel.setOpaque(true);
 		setContentPane(panel);
 		
-		setLayout();
+		//setLayout();
 		
-		setSize(new Dimension(600, 250));
-	//	pack();
+		//setSize(new Dimension(600, 250));
+		pack();
 		setVisible(true);
+		setResizable(false);
 		try {
 			
 			init_rabbitmq_connection_and_subscribe( host ,login ,password);
@@ -122,59 +157,96 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 		lb1.setForeground( Color.red );
 	}
 	
-	private void setLayout() {
+	private void setLayoutPanel2() {
+		GroupLayout layout = new GroupLayout(panel2);
+		panel2.setLayout(layout);
+		layout.setAutoCreateGaps(true);
+		layout.setAutoCreateContainerGaps(true);
+		layout.setHorizontalGroup(layout.createParallelGroup(  )
+			      .addGroup(layout.createSequentialGroup()
+			    		  .addGroup(layout.createParallelGroup( )
+			    				  .addComponent(labelEmail)	
+			    	    		  .addComponent(labelExplorationID)	
+			    	    		  .addComponent(labelConclusion)
+			    	    		
+			    			 )
+			    		  .addGroup(layout.createParallelGroup(  )
+			    				  .addComponent(textEmail)	
+			    	    		  .addComponent(textExplorationID)
+			    	    		  .addComponent(textConclusion)
+			    	    		
+			    			 )
+			    		  )
+			     
+			      .addComponent( sendButton2 )
+	);
+	layout.setVerticalGroup(layout.createSequentialGroup()
+			
+			   .addGroup(layout.createParallelGroup()
+					  .addComponent(labelEmail)	
+					  .addComponent(textEmail)
+					  
+				)
+			   .addGroup(layout.createParallelGroup()
+			   
+					  .addComponent(labelExplorationID)	
+					  .addComponent(textExplorationID)	
+				 )
+			   .addGroup(layout.createParallelGroup()
+					  .addComponent(labelConclusion)	
+					  .addComponent(textConclusion)	  
+						  
+				)
+			   .addComponent( sendButton2 )
+			  
+			);
+	}
+	
+	private void setLayoutPanel1() {
 		
 		GroupLayout layout = new GroupLayout(panel1);
 		panel1.setLayout(layout);
 		layout.setAutoCreateGaps(true);
 		layout.setAutoCreateContainerGaps(true);
-		
 		layout.setHorizontalGroup(layout.createParallelGroup(  )
 			      .addComponent(lb1)
 			      .addGroup(layout.createSequentialGroup()
 			    		  .addGroup(layout.createParallelGroup( )
 			    				  .addComponent(labelFirstName)	
-			    	    		  .addComponent(labelSecondName)
 			    	    		  .addComponent(labelLastName)	
+			    	    		  .addComponent(labelPatronymic)
 			    	    		  .addComponent(labelBirthday)
 			    	    		  .addComponent(labelEmail)
 			    			 )
 			    		  .addGroup(layout.createParallelGroup(  )
 			    				  .addComponent(textFirstName)	
-			    	    		  .addComponent(textSecondName)
-			    	    		  .addComponent(textLastName)	
+			    	    		  .addComponent(textLastName)
+			    	    		  .addComponent(textPatronymic)
 			    	    		  .addComponent(textBirthday)
 			    	    		  .addComponent(textEmail)
 			    			 )
 			    		  )
 			      .addComponent(lb2)
-			      .addGroup(layout.createSequentialGroup()
-			    		  .addComponent(b1)	
-			    		  .addComponent(b2)	  
-			    		  .addComponent(b3)	  
-			    		  .addComponent(b4)	  
-			    		  )
-			     
+			      .addComponent(sendButton1)
 	);
 	layout.setVerticalGroup(layout.createSequentialGroup()
 			   .addComponent(lb1)
-			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+			   .addGroup(layout.createParallelGroup()
 					  .addComponent(labelFirstName)	
 					  .addComponent(textFirstName)
 					  
 				)
-			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-					  .addComponent(labelSecondName)	
-					  .addComponent(textSecondName)	  
-					  
-				)
-			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+			   .addGroup(layout.createParallelGroup()
 			   
 					  .addComponent(labelLastName)	
-					   .addComponent(textLastName)	
+					  .addComponent(textLastName)	
 				 )
-			   
-			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+			   .addGroup(layout.createParallelGroup()
+						  .addComponent(labelPatronymic)	
+						  .addComponent(textPatronymic)	  
+						  
+				)
+			   .addGroup(layout.createParallelGroup()
 					   .addComponent(labelBirthday)	
 	    	    	   .addComponent(textBirthday)
 					 
@@ -185,51 +257,133 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 					 
 				  )
 			   .addComponent(lb2)
-			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-			           .addComponent(b1)
-			           .addComponent(b2)
-			           .addComponent(b3)
-			           .addComponent(b4)
-			           )
+			   .addComponent(sendButton1)
 			  
 			);
-
-
+	}
+	private void setLayoutPanel() {
+		GroupLayout layout = new GroupLayout(panel);
+		panel.setLayout(layout);
+		layout.setAutoCreateGaps(true);
+		layout.setAutoCreateContainerGaps(true);
+		layout.setHorizontalGroup(layout.createParallelGroup(  )
+			      .addComponent(toolBarPanel)
+			      .addComponent(panel0)
+			      .addComponent(statusBar)
+			      .addGap(20)
+				);
+		layout.setVerticalGroup(layout.createSequentialGroup()
+			   .addComponent(toolBarPanel)
+			   .addComponent(panel0)
+			   .addComponent(statusBar)
+			   .addGap(20)
+			);
+	}
+	private void togglePanels(String cmd) {
+		
+		panels.forEach(s->{
+			s.setVisible( false );
+			if (s.getBindCommand().equals(cmd)) {
+				s.setVisible( true );
+			}
+		});
+		buttons.forEach(s->{
+			s.setEnabled( true );
+			if (s.getActionCommand().equals(cmd)) {
+				s.setEnabled( false );
+			}
+		});
+		
 	}
 	private void initControls() {
+	
+		statusBar.setPreferredSize(new Dimension(200, 16));
+		statusBar.setBackground(Color.red);
+		statusBar.add(new JLabel("Status:"));
 		
-		panel.add(panel1);
-		panel1.setVisible(true);
+		sendButton1 = new JButton(bundle.getString(BUTTON_SEND));
+		sendButton2 = new JButton(bundle.getString(BUTTON_SEND));
+				
+	//	panel1.setVisible( false );
+		panel1.setBindCommand(CMD_INIT_CABINET);
+		panel2.setVisible( false );
+		panel2.setBindCommand(CMD_ADD_CONCLUSION);
+		
+		panels.add(panel1);
+		panels.add(panel2);
 		
 		labelFirstName.setText( bundle.getString(FIRST_NAME) + ":" );
-		labelSecondName.setText( bundle.getString(SECOND_NAME) +":" );
+		//labelFirstName.setLayout(  new FlowLayout(FlowLayout.RIGHT)  );
+		
+		labelPatronymic.setText( bundle.getString(PATRONYMIC) +":" );
 		labelLastName.setText( bundle.getString(LAST_NAME) +":" );
 		labelBirthday.setText( bundle.getString(BIRTHDAY) +":" );
-		labelEmail.setText( bundle.getString(EMAIL) +":" );
 		
-		textFirstName.setText( "Petrov" );
-		textSecondName.setText( "Ivan" );
-		textLastName.setText( "Ivanovich" );
-		textBirthday.setText( "1991" );
-		textEmail.setText( "bonobo@mail.dot.com" );
+		labelEmail.setText( bundle.getString(EMAIL) +":" );
+		labelEmail2.setText( bundle.getString(EMAIL) +":" );
+		
+		labelConclusion.setText( bundle.getString( CONCLUSION ) +":" );
+		labelExploration.setText( bundle.getString( EXPLORATION ) +":" );
+		labelExplorationID.setText( bundle.getString( EXPLORATIONID ) +":" );
+		
+		textFirstName.setPreferredSize(new Dimension(textWidth, textHeight));
+		textPatronymic.setPreferredSize(new Dimension(textWidth, textHeight));
+		textLastName.setPreferredSize(new Dimension(textWidth, textHeight));
+		textBirthday.setPreferredSize(new Dimension(textWidth, textHeight));
+		textEmail.setPreferredSize(new Dimension(textWidth, textHeight));
+		textExplorationID.setPreferredSize(new Dimension(textWidth, textHeight));
+		textConclusion.setPreferredSize(new Dimension(textWidth, textHeight));
 		
 		lb2.setText("Cabinet state:");
 		b1 = new JButton(bundle.getString(BUTTON_INIT_CABINET));
 		b1.setActionCommand(CMD_INIT_CABINET);
 		b1.addActionListener(this);
-		
+		b1.setEnabled(false);
 		
 		b2 = new JButton(bundle.getString(BUTTON_ADD_CONCLUSION));
 		b2.setActionCommand(CMD_ADD_CONCLUSION);
 		b2.addActionListener(this);
 		
-		b3 = new JButton("Add Dicom");
-		b3.setActionCommand("Add_Dicom3");
+		b3 = new JButton(bundle.getString(BUTTON_ADD_EXPLORATION));
+		b3.setActionCommand(CMD_ADD_EXPLORATION);
 		b3.addActionListener(this);
 		
-		b4 = new JButton("Add Dicom again ");
-		b4.setActionCommand("Add_Dicom4");
+		b4 = new JButton(bundle.getString(BUTTON_PROLONG_CABINET));
+		b4.setActionCommand(CMD_PROLONG_CABINET);
 		b4.addActionListener(this);
+		
+		b5 = new JButton(bundle.getString(BUTTON_BLOCK_CABINET));
+		b5.setActionCommand(CMD_BLOCK_CABINET);
+		b5.addActionListener(this);
+
+		buttons.add(b1);
+		buttons.add(b2);
+		buttons.add(b3);
+		buttons.add(b4);
+		buttons.add(b5);
+		
+		toolBarPanel.setLayout(new BoxLayout(toolBarPanel, BoxLayout.X_AXIS));
+		
+		toolBarPanel.add(b1, BorderLayout.LINE_START);
+		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+		toolBarPanel.add(b2, BorderLayout.LINE_START);
+		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+		toolBarPanel.add(b3, BorderLayout.LINE_START);
+		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+		toolBarPanel.add(b4, BorderLayout.LINE_START);
+		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+		toolBarPanel.add(b5, BorderLayout.LINE_START);
+		
+		setLayoutPanel();
+		setLayoutPanel1();
+		setLayoutPanel2();
+		
+	
+		 panel0.add( panel2 );
+		 panel0.add( panel1 );
+		// panel0.add(statusBar);
+		
+		
 		
 	}
 	private  void init_rabbitmq_connection_and_subscribe(String host, String user, String password) throws IOException, TimeoutException {
@@ -288,10 +442,17 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 	}
 	@Override
 	public void actionPerformed(ActionEvent e) {
+		
+		System.out.println(e.getActionCommand());
+		togglePanels( e.getActionCommand() );
+/*		
+		
 		String command = e.getActionCommand();
 		Person person = new Person(textFirstName.getText(),textSecondName.getText(), textLastName.getText(), textBirthday.getText(), textEmail.getText());
 		RabbitmqCommandMessage<Person> msg = new RabbitmqCommandMessage<>( command, person);
 		actionCommands.get( command ).accept( msg );
+		
+*/		
 	}
 	public String getGreeting() {
 		return "Hello world.";

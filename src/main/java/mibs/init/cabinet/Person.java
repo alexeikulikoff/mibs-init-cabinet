@@ -6,15 +6,15 @@ public class Person implements java.io.Serializable{
 	
 	private String firstName;
 	private String lastName;
-	private String serName;
+	private String patronymic;
 	private String dateOfBirth;
 	private String emeil;
 	
-	public Person(String firstName, String lastName, String serName, String dateOfBirth, String emeil) {
+	public Person(String firstName, String lastName, String patronymic, String dateOfBirth, String emeil) {
 		super();
 		this.firstName = firstName;
 		this.lastName = lastName;
-		this.serName = serName;
+		this.patronymic = patronymic;
 		this.dateOfBirth = dateOfBirth;
 		this.emeil = emeil;
 	}
@@ -27,8 +27,8 @@ public class Person implements java.io.Serializable{
 	public String getLastName() {
 		return lastName;
 	}
-	public String getSerName() {
-		return serName;
+	public String getPatronymic() {
+		return patronymic;
 	}
 	public String getDateOfBirth() {
 		return dateOfBirth;
@@ -38,7 +38,7 @@ public class Person implements java.io.Serializable{
 	}
 	@Override
 	public String toString() {
-		return "Person [firstName=" + firstName + ", lastName=" + lastName + ", serName=" + serName + ", dateOfBirth="
+		return "Person [firstName=" + firstName + ", lastName=" + lastName + ", patronymic=" + patronymic + ", dateOfBirth="
 				+ dateOfBirth + ", emeil=" + emeil + "]";
 	}
 	

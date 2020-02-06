@@ -14,16 +14,20 @@ import org.apache.commons.lang3.SerializationUtils;
 
 import com.rabbitmq.client.Channel;
 
-interface Commands {
+interface QueueHandler {
+	
 	String CMD_INIT_CABINET 			= "INIT";
-	String CMD_INITIALIZED 				= "INITIALIZED";
 	String CMD_ADD_CONCLUSION 			= "ADD_CONCLUSION";
+	String CMD_ADD_EXPLORATION			= "ADD_EXPLORATION";
 	String CMD_PROLONG_CABINET 			= "PROLONG";
 	String CMD_BLOCK_CABINET 			= "BLOCK";
-	String CMD_PING 					= "PING";
+	
+	
+	String CMD_INITIALIZED 				= "INITIALIZED";
+	
 	
 	String FIRST_NAME 					= "FIRST_NAME";
-	String SECOND_NAME 					= "SECOND_NAME";
+	String PATRONYMIC 					= "PATRONYMIC";
 	String LAST_NAME  					= "LAST_NAME";
 	String BIRTHDAY   					= "BIRTHDAY";
 	String EMAIL						= "EMAIL";
@@ -32,6 +36,14 @@ interface Commands {
 	
 	String BUTTON_INIT_CABINET			= "BUTTON_INIT_CABINET";
 	String BUTTON_ADD_CONCLUSION 		= "BUTTON_ADD_CONCLUSION";
+	String BUTTON_SEND					= "BUTTON_SEND";
+	String BUTTON_ADD_EXPLORATION		= "BUTTON_ADD_EXPLORATION";
+	String BUTTON_PROLONG_CABINET		= "BUTTON_PROLONG_CABINET";
+	String BUTTON_BLOCK_CABINET			= "BUTTON_BLOCK_CABINET";
+	String CONCLUSION					= "CONCLUSION";
+	String EXPLORATION					= "EXPLORATION";
+	String EXPLORATIONID				= "EXPLORATIONID";
+	
 	
 	String CONNECTION_ACTIVATED			= "CONNECTION_ACTIVATED";
 	String ERROR_CONNECTION				= "ERROR_CONNECTION";
@@ -73,7 +85,7 @@ interface Commands {
 		
 		responceCommands.put(CMD_INITIALIZED, ( p )->{
 			Person person = p.getContent();
-			String s = person.getFirstName() + "  " + person.getLastName() + "  " + person.getSerName();
+			String s = person.getFirstName() + "  " +  person.getPatronymic() + "  " + person.getLastName() ;
 			String text = MessageFormat.format(bundle.getString(RESP_CAB_INITIALIZED), s);
 			label.setText( text );
 			
