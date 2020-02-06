@@ -23,6 +23,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeoutException;
@@ -53,7 +54,12 @@ import com.rabbitmq.client.DeliverCallback;
 public class CabinetInit extends JFrame implements ActionListener, Commands {
 
 	private static final long serialVersionUID = 1L;
+	
+	private static final String EXCHANGE_NAME = "amq.direct";
+	private static final String SRC_PATH = "/home/admin2/storage/DICOM/1554293765-8E26DF76/temp";
+	
 	private JPanel panel = new JPanel();
+	
 	private JLabel lb1 =  new JLabel();;
 	private JLabel lb2 = new JLabel();
 	
@@ -69,42 +75,57 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 	private JTextField textBirthday  = new JTextField();
 	private JTextField textEmail  = new JTextField();
 	
+	private JPanel panel1 = new JPanel();
+	private JPanel panel2 = new JPanel();
+	
 	private JButton b1, b2, b3, b4;
+	
 	private Channel channel = null;
 	private Connection connection = null;
 	
-	public String getGreeting() {
-		return "Hello world.";
-	}
 	public CabinetInit() {
 		
-		super(bundle.getString(MAIN_CAPTION));
-		
+		super( PROG_CAPTION );
+			
 		initResponceCommands( lb2 );
+		initControls();
 		
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		panel.setOpaque(true);
+		setContentPane(panel);
 		
-		init();
+		setLayout();
 		
-		b1 = new JButton(bundle.getString(BUTTON_INIT_CABINET));
-		b1.setActionCommand(CMD_INIT_CABINET);
-		b1.addActionListener(this);
+		setSize(new Dimension(600, 250));
+	//	pack();
+		setVisible(true);
+		try {
+			
+			init_rabbitmq_connection_and_subscribe( host ,login ,password);
+			initActionCommands( channel, lb2 );
+			say_connection_active( host );
+		} catch (IOException e) {
+			say_connection_error( host );
+		} catch (TimeoutException e) {
+			say_connection_error( host );
+		}
 		
+	}
+
+
+	private void say_connection_active( String host ) {
+		lb1.setText(  MessageFormat.format( bundle.getString( CONNECTION_ACTIVATED ), host ) );
+		lb1.setForeground(Color.black);
+	}
+	private void say_connection_error(String host) {
+		lb1.setText( MessageFormat.format( bundle.getString( ERROR_CONNECTION ), host ) );
+		lb1.setForeground( Color.red );
+	}
+	
+	private void setLayout() {
 		
-		b2 = new JButton(bundle.getString(BUTTON_ADD_CONCLUSION));
-		b2.setActionCommand(CMD_ADD_CONCLUSION);
-		b2.addActionListener(this);
-		
-		b3 = new JButton("Add Dicom");
-		b3.setActionCommand("Add_Dicom3");
-		b3.addActionListener(this);
-		
-		b4 = new JButton("Add Dicom again ");
-		b4.setActionCommand("Add_Dicom4");
-		b4.addActionListener(this);
-		
-		
-		GroupLayout layout = new GroupLayout(panel);
-		panel.setLayout(layout);
+		GroupLayout layout = new GroupLayout(panel1);
+		panel1.setLayout(layout);
 		layout.setAutoCreateGaps(true);
 		layout.setAutoCreateContainerGaps(true);
 		
@@ -173,41 +194,13 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 			  
 			);
 
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		panel.setOpaque(true);
-		setContentPane(panel);
-		setSize(new Dimension(600, 250));
-	//	pack();
-		setVisible(true);
-		
-		try {
-			init_rabbitmq_connection_and_subscribe( host ,login ,password);
-			initActionCommands( channel, lb2 );
-			lb1.setText("Connection to host " + host + " is active ");
-			lb1.setForeground(Color.black);
-		} catch (IOException e) {
-			lb1.setText("Connection to message queue is not active");
-			lb1.setForeground(Color.red);
-		} catch (TimeoutException e) {
-			lb1.setText("Connection to message queue is not active");
-			lb1.setForeground(Color.red);
-		}
-		
+
 	}
-
-	private static final String EXCHANGE_NAME = "amq.direct";
-	private static final String SRC_PATH = "/home/admin2/storage/DICOM/1554293765-8E26DF76/temp";
-
-	
-	public static void main(String[] args) {
-		javax.swing.SwingUtilities.invokeLater(new Runnable() {
-			public void run() {
-				new CabinetInit();
-			}
-		});
-	}
-
-	private void init() {
+	private void initControls() {
+		
+		panel.add(panel1);
+		panel1.setVisible(true);
+		
 		labelFirstName.setText( bundle.getString(FIRST_NAME) + ":" );
 		labelSecondName.setText( bundle.getString(SECOND_NAME) +":" );
 		labelLastName.setText( bundle.getString(LAST_NAME) +":" );
@@ -221,10 +214,25 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 		textEmail.setText( "bonobo@mail.dot.com" );
 		
 		lb2.setText("Cabinet state:");
+		b1 = new JButton(bundle.getString(BUTTON_INIT_CABINET));
+		b1.setActionCommand(CMD_INIT_CABINET);
+		b1.addActionListener(this);
+		
+		
+		b2 = new JButton(bundle.getString(BUTTON_ADD_CONCLUSION));
+		b2.setActionCommand(CMD_ADD_CONCLUSION);
+		b2.addActionListener(this);
+		
+		b3 = new JButton("Add Dicom");
+		b3.setActionCommand("Add_Dicom3");
+		b3.addActionListener(this);
+		
+		b4 = new JButton("Add Dicom again ");
+		b4.setActionCommand("Add_Dicom4");
+		b4.addActionListener(this);
 		
 	}
-	private  void init_rabbitmq_connection_and_subscribe(String host, String user, String password)
-			throws IOException, TimeoutException {
+	private  void init_rabbitmq_connection_and_subscribe(String host, String user, String password) throws IOException, TimeoutException {
 
 		ConnectionFactory factory = new ConnectionFactory();
 		factory.setHost( host );
@@ -285,4 +293,15 @@ public class CabinetInit extends JFrame implements ActionListener, Commands {
 		RabbitmqCommandMessage<Person> msg = new RabbitmqCommandMessage<>( command, person);
 		actionCommands.get( command ).accept( msg );
 	}
+	public String getGreeting() {
+		return "Hello world.";
+	}
+	public static void main(String[] args) {
+		javax.swing.SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				new CabinetInit();
+			}
+		});
+	}
+	
 }
