@@ -21,11 +21,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -33,6 +37,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -43,9 +48,13 @@ import javax.swing.BoxLayout;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
+import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
@@ -53,6 +62,8 @@ import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
+import org.jdatepicker.JDatePicker;
+import org.jdatepicker.impl.JDatePickerImpl;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -66,20 +77,22 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	private static final int textWidth = 240;
 	private static final int textHeight= 24;
 	
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+	
 	private static final String EXCHANGE_NAME = "amq.direct";
 	private static final String SRC_PATH = "/home/admin2/storage/DICOM/1554293765-8E26DF76/temp";
 	
 
 	private JPanel statusBar = new JPanel( new FlowLayout(FlowLayout.LEFT)  );
+	private final JLabel statusLabel = new JLabel();
 	
+	private final JTabbedPane tabbedPane = new JTabbedPane();
 	private JPanel panel = new JPanel();
-	private JPanel toolBarPanel = new JPanel( );
-	private JPanel panel0 = new JPanel(new FlowLayout(FlowLayout.LEFT) );
+	
 	private CPanel panel1 = new CPanel( );
 	private CPanel panel2 = new CPanel();
-	
-	private List<CPanel> panels = new ArrayList<>();
-	private List<JButton> buttons = new ArrayList<>();
+	private CPanel panel3 = new CPanel( );
+	private CPanel panel4 = new CPanel();
 	
 	
 	private JLabel lb1 =  new JLabel();;
@@ -89,30 +102,46 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	private JLabel labelPatronymic = new JLabel();
 	private JLabel labelLastName = new JLabel();
 	private JLabel labelBirthday = new JLabel();
-	
-	private JLabel labelEmail = new JLabel();
-	private JLabel labelEmail2 = new JLabel();
-	
-	private JLabel labelConclusion = new JLabel();
-	private JLabel labelExploration = new JLabel();
-	private JLabel labelExplorationID = new JLabel();
-	
 	private JTextField textFirstName = new JTextField();
 	private JTextField textPatronymic = new JTextField();
 	private JTextField textLastName = new JTextField();
 	private JTextField textBirthday  = new JTextField();
 	
-	private JTextField textEmail  = new JTextField();
+	private JLabel labelEmail1 = new JLabel();
+	private JLabel labelEmail2 = new JLabel();
+	private JLabel labelEmail3 = new JLabel();
+	private JLabel labelEmail4 = new JLabel();	
+	private JTextField textEmail1  = new JTextField();
 	private JTextField textEmail2  = new JTextField();
+	private JTextField textEmail3  = new JTextField();
+	private JTextField textEmail4  = new JTextField();
 	
-	private JTextField textConclusion  = new JTextField();
-	private JTextField textExploration  = new JTextField();
+	private JLabel labelConclusion2 = new JLabel();
+	private JLabel labelConclusion3 = new JLabel();
+	private JTextField textConclusion2  = new JTextField();
+	private JTextField textConclusion3  = new JTextField();
+	
+	
+	private JLabel labelExploration2 = new JLabel();
+	private JLabel labelExploration3 = new JLabel();
+	private JTextField textExploration3  = new JTextField();
+	
+	
+	private JLabel labelExplorationID2 = new JLabel();
+	private JLabel labelExplorationID3 = new JLabel();
+	private JTextField textExplorationID2  = new JTextField();
+	private JTextField textExplorationID3  = new JTextField();
+	
+	private final JLabel labelProlong = new JLabel();
+	private final JTextField textProlong = new JTextField();
+	
+	
+	private final Dimension textSize = new Dimension(textWidth, textHeight);
 
-	private JTextField textExplorationID  = new JTextField();
+	private JButton sendButton1, sendButton2, sendButton3, sendButton4, openConclusion, openExploration;
 	
-	
-	private JButton b1, b2, b3, b4, b5;
-	private JButton sendButton1, sendButton2, sendButton3, sendButton4;
+	private final JFileChooser conclusionChooser = new JFileChooser();
+	private final JFileChooser explorationChooser = new JFileChooser();
 	
 	private Channel channel = null;
 	private Connection connection = null;
@@ -120,41 +149,280 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	public CabinetInit() {
 		
 		super( PROG_CAPTION );
-			
-		initResponceCommands( lb2 );
+	
+		initResponceCommands( (s) -> JOptionPane.showMessageDialog(this, s) );
+	
 		initControls();
+		
+		initActionPerfomance();
 		
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		panel.setOpaque(true);
 		setContentPane(panel);
 		
-		//setLayout();
-		
 		//setSize(new Dimension(600, 250));
 		pack();
 		setVisible(true);
-		setResizable(false);
+		//setResizable(false);
+		
 		try {
 			
-			init_rabbitmq_connection_and_subscribe( host ,login ,password);
-			initActionCommands( channel, lb2 );
-			say_connection_active( host );
+			init_rabbitmq_connection_and_subscribe( host, login, password);
+			
+			say_connection_active( (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( CONNECTION_ACTIVATED ), host );
+			
 		} catch (IOException e) {
-			say_connection_error( host );
+			say_connection_error(  (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_CONNECTION ), host  );
 		} catch (TimeoutException e) {
-			say_connection_error( host );
+			say_connection_error(  (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_CONNECTION ), host  );
 		}
 		
 	}
 
 
-	private void say_connection_active( String host ) {
-		lb1.setText(  MessageFormat.format( bundle.getString( CONNECTION_ACTIVATED ), host ) );
-		lb1.setForeground(Color.black);
+	private void say_connection_active( BiConsumer<String,String> callback, String host, String msg ) {
+		
+		callback.accept(host, msg);
 	}
-	private void say_connection_error(String host) {
-		lb1.setText( MessageFormat.format( bundle.getString( ERROR_CONNECTION ), host ) );
-		lb1.setForeground( Color.red );
+	private void say_connection_error( BiConsumer<String,String> callback, String host, String msg ) {
+		
+		callback.accept(host, msg);
+	}
+	
+	private void say_wrongEmail(Consumer<String> callback, String email) {
+		
+		callback.accept( MessageFormat.format( bundle.getString( ERROR_EMAIL ), email) ) ;
+	}
+	
+	private void initActionPerfomance() {
+		
+		sendButton1.addActionListener((e)->{
+			String firstName = textFirstName.getText();
+			String lastName = textLastName.getText();
+			String patronymic = textPatronymic.getText();
+			String email  = textEmail1.getText();
+			try {
+				LocalDate birthday =  LocalDate.parse(textBirthday.getText(), formatter);
+				Person person = new Person(firstName, lastName, patronymic, birthday, email);
+				RabbitmqCommandMessage<Person> message = new RabbitmqCommandMessage<>(CMD_INIT_CABINET, person);
+				publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
+
+			}catch( IllegalArgumentException e1) {
+				
+				say_wrongEmail( (s) -> JOptionPane.showMessageDialog(this, s,  bundle.getString( ERROR_TITLE ), JOptionPane.ERROR_MESSAGE), email );
+			}
+			
+			catch( DateTimeParseException e2) {
+				
+				System.out.println("error " + e2.getMessage());
+			}
+		
+		});
+		sendButton2.addActionListener((e)->{
+			String email = textEmail2.getText();
+			String _path = textConclusion2.getText();
+			String uniqueId = textExplorationID2.getText();
+			Path path = Paths.get(_path);
+			try {
+				String conclusionName = path.getFileName().toString();
+				byte[] conclusionContent = Files.readAllBytes( path );
+				Conclusion conclusion = new Conclusion( email, conclusionName, conclusionContent, uniqueId);
+				RabbitmqCommandMessage<Conclusion> message = new RabbitmqCommandMessage<>(CMD_ADD_CONCLUSION, conclusion);
+				publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
+			
+			} catch (IOException e1) {
+				statusLabel.setText( MessageFormat.format( bundle.getString( ERROR_PUBLISH ), host  ));
+			}
+		});
+		sendButton3.addActionListener((e)->{
+			String email = textEmail3.getText();
+			String uniqueID = textExplorationID3.getText();
+			String folderName = textExploration3.getText();
+			Exploration exploration = new Exploration(email, uniqueID, folderName);
+			RabbitmqCommandMessage<Exploration> message = new RabbitmqCommandMessage<>(CMD_ADD_EXPLORATION, exploration);
+			publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
+		});
+		sendButton4.addActionListener((e)->{
+			String email = textEmail4.getText();
+			LocalDate prolongDate = LocalDate.parse( textProlong.getText() , formatter);
+			Prolong prolong = new Prolong(email,prolongDate );
+			RabbitmqCommandMessage<Prolong> message = new RabbitmqCommandMessage<>(CMD_PROLONG_CABINET, prolong);
+			publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
+			
+		});
+	}
+	@Override
+	public void actionPerformed(ActionEvent e) {
+	
+	}
+	private void initControls() {
+		statusBar.setPreferredSize(new Dimension(200, 16));
+		statusBar.add( statusLabel );
+		sendButton1 = new JButton(bundle.getString(BUTTON_SEND1));
+		sendButton2 = new JButton(bundle.getString(BUTTON_SEND2));
+		sendButton3 = new JButton(bundle.getString(BUTTON_SEND2));
+		sendButton4 = new JButton(bundle.getString(BUTTON_PROLONG));
+		
+		openConclusion = new JButton("...") ;
+		openConclusion.addActionListener( ( e )->{
+			 int returnVal = conclusionChooser.showOpenDialog(this);
+		     if (returnVal == JFileChooser.APPROVE_OPTION) {
+		           File file = conclusionChooser.getSelectedFile();
+		           textConclusion2.setText( file.getAbsoluteFile().toString() );
+		        }
+		});
+		openExploration = new JButton("...") ;
+		openExploration.addActionListener( ( e )->{
+			 explorationChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+			 int returnVal = explorationChooser.showOpenDialog(this);
+		     if (returnVal == JFileChooser.APPROVE_OPTION) {
+		           File file = explorationChooser.getSelectedFile();
+		           textExploration3.setText( file.getAbsoluteFile().toString() );
+		        }
+		});
+		
+		labelFirstName.setText( bundle.getString(FIRST_NAME) + ":" );
+		
+		labelPatronymic.setText( bundle.getString(PATRONYMIC) +":" );
+		labelLastName.setText( bundle.getString(LAST_NAME) +":" );
+		labelBirthday.setText( bundle.getString(BIRTHDAY) +":" );
+		
+		labelEmail1.setText( bundle.getString(EMAIL) +":" );
+		labelEmail2.setText( bundle.getString(EMAIL) +":" );
+		labelEmail3.setText( bundle.getString(EMAIL) +":" );
+		labelEmail4.setText( bundle.getString(EMAIL) +":" );
+		
+		labelConclusion2.setText( bundle.getString( CONCLUSION ) +":" );
+		labelExploration2.setText( bundle.getString( EXPLORATION ) +":" );
+		labelExplorationID2.setText( bundle.getString( EXPLORATIONID ) +":" );
+		
+		labelConclusion3.setText( bundle.getString( CONCLUSION ) +":" );
+		labelExploration3.setText( bundle.getString( EXPLORATION ) +":" );
+		labelExplorationID3.setText( bundle.getString( EXPLORATIONID ) +":" );
+		
+		labelProlong.setText( bundle.getString( DATE ) +":" );	
+		
+		textFirstName.setPreferredSize( textSize );
+		textPatronymic.setPreferredSize( textSize );
+		textLastName.setPreferredSize( textSize );
+		textBirthday.setPreferredSize( textSize );
+		textEmail1.setPreferredSize( textSize );
+		textEmail2.setPreferredSize( textSize );
+		textEmail3.setPreferredSize( textSize );
+		textEmail4.setPreferredSize( textSize );
+		textExplorationID2.setPreferredSize( textSize );
+		textExplorationID2.setPreferredSize( textSize );
+		textExplorationID3.setPreferredSize( textSize );
+		textExploration3.setPreferredSize( textSize );
+		
+		textConclusion2.setPreferredSize( textSize );
+		textProlong.setPreferredSize( textSize );
+		
+		textProlong.setText( formatter.format( LocalDate.now().plusDays(365) ) );
+	
+		tabbedPane.setBounds(50,50,200,200);  
+		tabbedPane.add( bundle.getString(BUTTON_INIT_CABINET), panel1);
+		tabbedPane.add( bundle.getString(BUTTON_ADD_CONCLUSION), panel2);
+		tabbedPane.add( bundle.getString(BUTTON_ADD_EXPLORATION), panel3);
+		tabbedPane.add( bundle.getString(BUTTON_PROLONG_CABINET), panel4);
+		
+		setLayoutPanel();
+		 
+		setLayoutPanel1();
+		setLayoutPanel2() ;
+		setLayoutPanel3() ;
+		setLayoutPanel4();
+	}
+
+	
+	private void setLayoutPanel4() {
+		GroupLayout layout = new GroupLayout(panel4);
+		panel4.setLayout(layout);
+		layout.setAutoCreateGaps(true);
+		layout.setAutoCreateContainerGaps(true);
+		layout.setHorizontalGroup(layout.createParallelGroup(  )
+			      .addGroup(layout.createSequentialGroup()
+			    		  .addGroup(layout.createParallelGroup( )
+			    				  .addComponent(labelEmail4)
+			    				  .addComponent(labelProlong)
+			    	    				 
+			    			 )
+			    		  .addGroup(layout.createParallelGroup(  )
+			    				  .addComponent(textEmail4)	
+			    	    		  .addComponent(textProlong)
+			    			 )
+			    		  )
+			     
+			      .addComponent( sendButton4 )
+	);
+	layout.setVerticalGroup(layout.createSequentialGroup()
+			
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
+					  .addComponent(labelEmail4)	
+					  .addComponent(textEmail4)
+					  
+				)
+			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
+			   
+					  .addComponent(labelProlong)	
+					  .addComponent(textProlong)	
+				 )
+			 
+			   .addComponent( sendButton4 )
+			  
+			);
+	}
+	
+	private void setLayoutPanel3() {
+		GroupLayout layout = new GroupLayout(panel3);
+		panel3.setLayout(layout);
+		layout.setAutoCreateGaps(true);
+		layout.setAutoCreateContainerGaps(true);
+		layout.setHorizontalGroup(layout.createParallelGroup(  )
+			      .addGroup(layout.createSequentialGroup()
+			    		  .addGroup(layout.createParallelGroup( )
+			    				  .addComponent(labelEmail3)	
+			    	    		  .addComponent(labelExplorationID3)	
+			    	    		  .addComponent(labelExploration3)
+			    	    				 
+			    			 )
+			    		  .addGroup(layout.createParallelGroup(  )
+			    				  .addComponent(textEmail3)	
+			    	    		  .addComponent(textExplorationID3)
+			    	    		  .addGroup(layout.createSequentialGroup()
+			    	    				  .addComponent(textExploration3)
+			    	    				  .addComponent(openExploration)
+			    	    				 
+		    	    				 )		 
+			    			 )
+			    		  )
+			     
+			      .addComponent( sendButton3 )
+	);
+	layout.setVerticalGroup(layout.createSequentialGroup()
+			
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
+					  .addComponent(labelEmail3)	
+					  .addComponent(textEmail3)
+					  
+				)
+			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
+			   
+					  .addComponent(labelExplorationID3)	
+					  .addComponent(textExplorationID3)	
+				 )
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
+					  .addComponent(labelExploration3)
+					  .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
+							  	.addComponent(textExploration3)
+							  	 .addComponent(openExploration)
+							  )
+					
+						  
+				)
+			   .addComponent( sendButton3 )
+			  
+			);
 	}
 	
 	private void setLayoutPanel2() {
@@ -165,16 +433,19 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		layout.setHorizontalGroup(layout.createParallelGroup(  )
 			      .addGroup(layout.createSequentialGroup()
 			    		  .addGroup(layout.createParallelGroup( )
-			    				  .addComponent(labelEmail)	
-			    	    		  .addComponent(labelExplorationID)	
-			    	    		  .addComponent(labelConclusion)
-			    	    		
+			    				  .addComponent(labelEmail2)	
+			    	    		  .addComponent(labelExplorationID2)	
+			    	    		  .addComponent(labelConclusion2)
+			    	    				 
 			    			 )
 			    		  .addGroup(layout.createParallelGroup(  )
-			    				  .addComponent(textEmail)	
-			    	    		  .addComponent(textExplorationID)
-			    	    		  .addComponent(textConclusion)
-			    	    		
+			    				  .addComponent(textEmail2)	
+			    	    		  .addComponent(textExplorationID2)
+			    	    		  .addGroup(layout.createSequentialGroup()
+			    	    				  .addComponent(textConclusion2)
+			    	    				  .addComponent(openConclusion)
+			    	    				 
+		    	    				 )		 
 			    			 )
 			    		  )
 			     
@@ -182,19 +453,23 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	);
 	layout.setVerticalGroup(layout.createSequentialGroup()
 			
-			   .addGroup(layout.createParallelGroup()
-					  .addComponent(labelEmail)	
-					  .addComponent(textEmail)
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
+					  .addComponent(labelEmail2)	
+					  .addComponent(textEmail2)
 					  
 				)
-			   .addGroup(layout.createParallelGroup()
+			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
 			   
-					  .addComponent(labelExplorationID)	
-					  .addComponent(textExplorationID)	
+					  .addComponent(labelExplorationID2)	
+					  .addComponent(textExplorationID2)	
 				 )
-			   .addGroup(layout.createParallelGroup()
-					  .addComponent(labelConclusion)	
-					  .addComponent(textConclusion)	  
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
+					  .addComponent(labelConclusion2)
+					  .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
+							  	.addComponent(textConclusion2)
+							  	 .addComponent(openConclusion)
+							  )
+					
 						  
 				)
 			   .addComponent( sendButton2 )
@@ -209,54 +484,53 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		layout.setAutoCreateGaps(true);
 		layout.setAutoCreateContainerGaps(true);
 		layout.setHorizontalGroup(layout.createParallelGroup(  )
-			      .addComponent(lb1)
+			  
 			      .addGroup(layout.createSequentialGroup()
 			    		  .addGroup(layout.createParallelGroup( )
+			    				  .addComponent(labelLastName)	
 			    				  .addComponent(labelFirstName)	
-			    	    		  .addComponent(labelLastName)	
 			    	    		  .addComponent(labelPatronymic)
 			    	    		  .addComponent(labelBirthday)
-			    	    		  .addComponent(labelEmail)
+			    	    		  .addComponent(labelEmail1)
 			    			 )
 			    		  .addGroup(layout.createParallelGroup(  )
+			    				  .addComponent(textLastName)
 			    				  .addComponent(textFirstName)	
-			    	    		  .addComponent(textLastName)
 			    	    		  .addComponent(textPatronymic)
 			    	    		  .addComponent(textBirthday)
-			    	    		  .addComponent(textEmail)
+			    	    		  .addComponent(textEmail1)
 			    			 )
 			    		  )
-			      .addComponent(lb2)
+			   
 			      .addComponent(sendButton1)
 	);
 	layout.setVerticalGroup(layout.createSequentialGroup()
-			   .addComponent(lb1)
-			   .addGroup(layout.createParallelGroup()
-					  .addComponent(labelFirstName)	
-					  .addComponent(textFirstName)
-					  
+			 
+			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
+					   .addComponent(labelLastName)	
+					   .addComponent(textLastName)	
 				)
-			   .addGroup(layout.createParallelGroup()
+			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE)
 			   
-					  .addComponent(labelLastName)	
-					  .addComponent(textLastName)	
+					   .addComponent(labelFirstName)	
+						  .addComponent(textFirstName)
 				 )
-			   .addGroup(layout.createParallelGroup()
+			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
 						  .addComponent(labelPatronymic)	
 						  .addComponent(textPatronymic)	  
 						  
 				)
-			   .addGroup(layout.createParallelGroup()
+			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
 					   .addComponent(labelBirthday)	
 	    	    	   .addComponent(textBirthday)
 					 
 				  )
 			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-					   .addComponent(labelEmail)	
-	    	    	   .addComponent(textEmail)
+					   .addComponent(labelEmail1)	
+	    	    	   .addComponent(textEmail1)
 					 
 				  )
-			   .addComponent(lb2)
+			 
 			   .addComponent(sendButton1)
 			  
 			);
@@ -267,125 +541,17 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		layout.setAutoCreateGaps(true);
 		layout.setAutoCreateContainerGaps(true);
 		layout.setHorizontalGroup(layout.createParallelGroup(  )
-			      .addComponent(toolBarPanel)
-			      .addComponent(panel0)
+			      .addComponent(tabbedPane)
 			      .addComponent(statusBar)
 			      .addGap(20)
 				);
 		layout.setVerticalGroup(layout.createSequentialGroup()
-			   .addComponent(toolBarPanel)
-			   .addComponent(panel0)
+			   .addComponent(tabbedPane)
 			   .addComponent(statusBar)
 			   .addGap(20)
 			);
 	}
-	private void togglePanels(String cmd) {
-		
-		panels.forEach(s->{
-			s.setVisible( false );
-			if (s.getBindCommand().equals(cmd)) {
-				s.setVisible( true );
-			}
-		});
-		buttons.forEach(s->{
-			s.setEnabled( true );
-			if (s.getActionCommand().equals(cmd)) {
-				s.setEnabled( false );
-			}
-		});
-		
-	}
-	private void initControls() {
 	
-		statusBar.setPreferredSize(new Dimension(200, 16));
-		statusBar.setBackground(Color.red);
-		statusBar.add(new JLabel("Status:"));
-		
-		sendButton1 = new JButton(bundle.getString(BUTTON_SEND));
-		sendButton2 = new JButton(bundle.getString(BUTTON_SEND));
-				
-	//	panel1.setVisible( false );
-		panel1.setBindCommand(CMD_INIT_CABINET);
-		panel2.setVisible( false );
-		panel2.setBindCommand(CMD_ADD_CONCLUSION);
-		
-		panels.add(panel1);
-		panels.add(panel2);
-		
-		labelFirstName.setText( bundle.getString(FIRST_NAME) + ":" );
-		//labelFirstName.setLayout(  new FlowLayout(FlowLayout.RIGHT)  );
-		
-		labelPatronymic.setText( bundle.getString(PATRONYMIC) +":" );
-		labelLastName.setText( bundle.getString(LAST_NAME) +":" );
-		labelBirthday.setText( bundle.getString(BIRTHDAY) +":" );
-		
-		labelEmail.setText( bundle.getString(EMAIL) +":" );
-		labelEmail2.setText( bundle.getString(EMAIL) +":" );
-		
-		labelConclusion.setText( bundle.getString( CONCLUSION ) +":" );
-		labelExploration.setText( bundle.getString( EXPLORATION ) +":" );
-		labelExplorationID.setText( bundle.getString( EXPLORATIONID ) +":" );
-		
-		textFirstName.setPreferredSize(new Dimension(textWidth, textHeight));
-		textPatronymic.setPreferredSize(new Dimension(textWidth, textHeight));
-		textLastName.setPreferredSize(new Dimension(textWidth, textHeight));
-		textBirthday.setPreferredSize(new Dimension(textWidth, textHeight));
-		textEmail.setPreferredSize(new Dimension(textWidth, textHeight));
-		textExplorationID.setPreferredSize(new Dimension(textWidth, textHeight));
-		textConclusion.setPreferredSize(new Dimension(textWidth, textHeight));
-		
-		lb2.setText("Cabinet state:");
-		b1 = new JButton(bundle.getString(BUTTON_INIT_CABINET));
-		b1.setActionCommand(CMD_INIT_CABINET);
-		b1.addActionListener(this);
-		b1.setEnabled(false);
-		
-		b2 = new JButton(bundle.getString(BUTTON_ADD_CONCLUSION));
-		b2.setActionCommand(CMD_ADD_CONCLUSION);
-		b2.addActionListener(this);
-		
-		b3 = new JButton(bundle.getString(BUTTON_ADD_EXPLORATION));
-		b3.setActionCommand(CMD_ADD_EXPLORATION);
-		b3.addActionListener(this);
-		
-		b4 = new JButton(bundle.getString(BUTTON_PROLONG_CABINET));
-		b4.setActionCommand(CMD_PROLONG_CABINET);
-		b4.addActionListener(this);
-		
-		b5 = new JButton(bundle.getString(BUTTON_BLOCK_CABINET));
-		b5.setActionCommand(CMD_BLOCK_CABINET);
-		b5.addActionListener(this);
-
-		buttons.add(b1);
-		buttons.add(b2);
-		buttons.add(b3);
-		buttons.add(b4);
-		buttons.add(b5);
-		
-		toolBarPanel.setLayout(new BoxLayout(toolBarPanel, BoxLayout.X_AXIS));
-		
-		toolBarPanel.add(b1, BorderLayout.LINE_START);
-		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
-		toolBarPanel.add(b2, BorderLayout.LINE_START);
-		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
-		toolBarPanel.add(b3, BorderLayout.LINE_START);
-		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
-		toolBarPanel.add(b4, BorderLayout.LINE_START);
-		toolBarPanel.add(Box.createRigidArea(new Dimension(5, 0)));
-		toolBarPanel.add(b5, BorderLayout.LINE_START);
-		
-		setLayoutPanel();
-		setLayoutPanel1();
-		setLayoutPanel2();
-		
-	
-		 panel0.add( panel2 );
-		 panel0.add( panel1 );
-		// panel0.add(statusBar);
-		
-		
-		
-	}
 	private  void init_rabbitmq_connection_and_subscribe(String host, String user, String password) throws IOException, TimeoutException {
 
 		ConnectionFactory factory = new ConnectionFactory();
@@ -398,62 +564,16 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		channel.queueDeclare("localin", true, false, false, null);
 		channel.queueDeclare("localout", true, false, false, null);
 
+		@SuppressWarnings("unchecked")
 		DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-			RabbitmqCommandMessage<?> msg = (RabbitmqCommandMessage<?>) SerializationUtils.deserialize(delivery.getBody());
-			responceCommands.get( msg.getCommand() ).accept( (RabbitmqCommandMessage<Person>) msg );
+			RabbitmqCommandMessage<?> msg = (RabbitmqCommandMessage<?>) SerializationUtils.deserialize( delivery.getBody() );
+			responceCommands.get( msg.getCommand() ).accept( (RabbitmqCommandMessage<? extends Serializable> ) msg );
 		};
 		channel.basicConsume("localout", true, deliverCallback, consumerTag -> {});
 
 		System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
 	}
-	private void make7Z() throws IOException {
 
-		Files.list(Paths.get(SRC_PATH)).filter((s) -> !s.toString().endsWith("zip")).forEach((fn) -> {
-			String zipName = FilenameUtils.removeExtension(fn.getFileName().toString()) + ".zip";
-			try {
-				ByteArrayOutputStream bos = new ByteArrayOutputStream();
-				ZipOutputStream zipOut = new ZipOutputStream(bos);
-				File fileToZip = new File(fn.toString());
-				FileInputStream fis = new FileInputStream(fileToZip);
-				ZipEntry zipEntry = new ZipEntry(fileToZip.getName());
-				try {
-					zipOut.putNextEntry(zipEntry);
-					IOUtils.copy(fis, zipOut);
-					zipOut.flush();
-					bos.flush();
-					zipOut.close();
-					fis.close();
-					byte[] bytes = bos.toByteArray();
-					bos.close();
-					RabbitmqDicomMessage msg = new RabbitmqDicomMessage(zipName, bytes);
-					byte[] rc = SerializationUtils.serialize(msg);
-					System.out.println(fn.getFileName().toString() + "  " + rc.length);
-					channel.basicPublish(EXCHANGE_NAME, "", true, false, null, rc);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-
-			} catch (FileNotFoundException e1) {
-
-				e1.printStackTrace();
-			}
-
-		});
-	}
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		
-		System.out.println(e.getActionCommand());
-		togglePanels( e.getActionCommand() );
-/*		
-		
-		String command = e.getActionCommand();
-		Person person = new Person(textFirstName.getText(),textSecondName.getText(), textLastName.getText(), textBirthday.getText(), textEmail.getText());
-		RabbitmqCommandMessage<Person> msg = new RabbitmqCommandMessage<>( command, person);
-		actionCommands.get( command ).accept( msg );
-		
-*/		
-	}
 	public String getGreeting() {
 		return "Hello world.";
 	}
