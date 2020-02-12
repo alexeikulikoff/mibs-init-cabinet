@@ -3,6 +3,8 @@ package mibs.init.cabinet;
 import java.io.Serializable;
 import java.util.Arrays;
 
+import org.apache.commons.validator.routines.EmailValidator;
+
 public class Conclusion implements Serializable{
 
 	/**
@@ -15,10 +17,16 @@ public class Conclusion implements Serializable{
 	private String uniqueID;
 	public Conclusion(String email, String conclusionName, byte[] conclusionContent, String uniqueID) {
 		super();
-		this.email = email;
+		
 		this.conclusionName = conclusionName;
 		this.conclusionContent = conclusionContent;
 		this.uniqueID = uniqueID;
+		boolean isValid = EmailValidator.getInstance().isValid(email);
+		if (isValid) {
+			this.email = email.toLowerCase();
+		}else {
+			throw new IllegalArgumentException( "Email " + email + " is incorrect!"  );	
+		}
 	}
 	public String getEmail() {
 		return email;

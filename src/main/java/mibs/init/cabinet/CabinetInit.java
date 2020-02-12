@@ -3,26 +3,13 @@
  */
 package mibs.init.cabinet;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.ComponentOrientation;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,26 +17,14 @@ import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
-import javax.swing.AbstractButton;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JFileChooser;
-import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -57,13 +32,7 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 
-import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
-import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
-import org.jdatepicker.JDatePicker;
-import org.jdatepicker.impl.JDatePickerImpl;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -79,10 +48,7 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	
 	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 	
-	private static final String EXCHANGE_NAME = "amq.direct";
-	private static final String SRC_PATH = "/home/admin2/storage/DICOM/1554293765-8E26DF76/temp";
 	
-
 	private JPanel statusBar = new JPanel( new FlowLayout(FlowLayout.LEFT)  );
 	private final JLabel statusLabel = new JLabel();
 	
@@ -94,9 +60,6 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	private CPanel panel3 = new CPanel( );
 	private CPanel panel4 = new CPanel();
 	
-	
-	private JLabel lb1 =  new JLabel();;
-	private JLabel lb2 = new JLabel();
 	
 	private JLabel labelFirstName = new JLabel();
 	private JLabel labelPatronymic = new JLabel();
@@ -119,8 +82,6 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	private JLabel labelConclusion2 = new JLabel();
 	private JLabel labelConclusion3 = new JLabel();
 	private JTextField textConclusion2  = new JTextField();
-	private JTextField textConclusion3  = new JTextField();
-	
 	
 	private JLabel labelExploration2 = new JLabel();
 	private JLabel labelExploration3 = new JLabel();
@@ -138,7 +99,7 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	
 	private final Dimension textSize = new Dimension(textWidth, textHeight);
 
-	private JButton sendButton1, sendButton2, sendButton3, sendButton4, openConclusion, openExploration;
+	private JButton sendButton1, sendButton2, sendButton3, sendButton4, openConclusion, openExploration, genID2Button, genID3Button;
 	
 	private final JFileChooser conclusionChooser = new JFileChooser();
 	private final JFileChooser explorationChooser = new JFileChooser();
@@ -193,7 +154,9 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		
 		callback.accept( MessageFormat.format( bundle.getString( ERROR_EMAIL ), email) ) ;
 	}
-	
+	private static final String uniqueID() {
+		return UUID.randomUUID().toString().substring(0,7).toUpperCase() + System.currentTimeMillis(); 
+	}
 	private void initActionPerfomance() {
 		
 		sendButton1.addActionListener((e)->{
@@ -229,32 +192,48 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 				Conclusion conclusion = new Conclusion( email, conclusionName, conclusionContent, uniqueId);
 				RabbitmqCommandMessage<Conclusion> message = new RabbitmqCommandMessage<>(CMD_ADD_CONCLUSION, conclusion);
 				publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
-			
+			}catch( IllegalArgumentException e1) {
+				
+				say_wrongEmail( (s) -> JOptionPane.showMessageDialog(this, s,  bundle.getString( ERROR_TITLE ), JOptionPane.ERROR_MESSAGE), email );
+
 			} catch (IOException e1) {
 				statusLabel.setText( MessageFormat.format( bundle.getString( ERROR_PUBLISH ), host  ));
 			}
 		});
 		sendButton3.addActionListener((e)->{
-			String email = textEmail3.getText();
-			String uniqueID = textExplorationID3.getText();
-			String folderName = textExploration3.getText();
-			Exploration exploration = new Exploration(email, uniqueID, folderName);
-			RabbitmqCommandMessage<Exploration> message = new RabbitmqCommandMessage<>(CMD_ADD_EXPLORATION, exploration);
-			publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
+			String email  = null;
+			try {
+				email = textEmail3.getText();
+				String uniqueID = textExplorationID3.getText();
+				String folderName = textExploration3.getText();
+				Exploration exploration = new Exploration(email, uniqueID, folderName);
+				RabbitmqCommandMessage<Exploration> message = new RabbitmqCommandMessage<>(CMD_ADD_EXPLORATION, exploration);
+				publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
+
+			 }catch( IllegalArgumentException e1) {
+					
+				 say_wrongEmail( (s) -> JOptionPane.showMessageDialog(this, s,  bundle.getString( ERROR_TITLE ), JOptionPane.ERROR_MESSAGE), email );
+			 }
 		});
 		sendButton4.addActionListener((e)->{
-			String email = textEmail4.getText();
-			LocalDate prolongDate = LocalDate.parse( textProlong.getText() , formatter);
-			Prolong prolong = new Prolong(email,prolongDate );
-			RabbitmqCommandMessage<Prolong> message = new RabbitmqCommandMessage<>(CMD_PROLONG_CABINET, prolong);
-			publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
-			
+			String email = null;
+			try {
+				email = textEmail4.getText();
+				LocalDate prolongDate = LocalDate.parse( textProlong.getText() , formatter);
+				Prolong prolong = new Prolong(email,prolongDate );
+				RabbitmqCommandMessage<Prolong> message = new RabbitmqCommandMessage<>(CMD_PROLONG_CABINET, prolong);
+				publisToLocalIN(channel,message, (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_PUBLISH ), host  );
+			  }catch( IllegalArgumentException e1) {
+					
+				 say_wrongEmail( (s) -> JOptionPane.showMessageDialog(this, s,  bundle.getString( ERROR_TITLE ), JOptionPane.ERROR_MESSAGE), email );
+			 }
 		});
 	}
 	@Override
 	public void actionPerformed(ActionEvent e) {
 	
 	}
+	
 	private void initControls() {
 		statusBar.setPreferredSize(new Dimension(200, 16));
 		statusBar.add( statusLabel );
@@ -262,6 +241,9 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		sendButton2 = new JButton(bundle.getString(BUTTON_SEND2));
 		sendButton3 = new JButton(bundle.getString(BUTTON_SEND2));
 		sendButton4 = new JButton(bundle.getString(BUTTON_PROLONG));
+		
+		genID2Button = new JButton("*");
+		genID3Button = new JButton("*");
 		
 		openConclusion = new JButton("...") ;
 		openConclusion.addActionListener( ( e )->{
@@ -280,6 +262,9 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		           textExploration3.setText( file.getAbsoluteFile().toString() );
 		        }
 		});
+		
+		genID2Button.addActionListener((e)->{ textExplorationID2.setText( uniqueID() ); });
+		genID3Button.addActionListener((e)->{ textExplorationID3.setText( uniqueID() ); });
 		
 		labelFirstName.setText( bundle.getString(FIRST_NAME) + ":" );
 		
@@ -388,7 +373,11 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 			    			 )
 			    		  .addGroup(layout.createParallelGroup(  )
 			    				  .addComponent(textEmail3)	
-			    	    		  .addComponent(textExplorationID3)
+			    				  
+			    				  .addGroup(layout.createSequentialGroup()
+			    						  .addComponent(textExplorationID3)
+			    						  .addComponent(genID3Button)
+			    						  )
 			    	    		  .addGroup(layout.createSequentialGroup()
 			    	    				  .addComponent(textExploration3)
 			    	    				  .addComponent(openExploration)
@@ -407,9 +396,12 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 					  
 				)
 			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
-			   
 					  .addComponent(labelExplorationID3)	
-					  .addComponent(textExplorationID3)	
+					  .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
+							  .addComponent(genID3Button)
+							  .addComponent(textExplorationID3)	
+					  )
+					  
 				 )
 			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
 					  .addComponent(labelExploration3)
@@ -440,7 +432,12 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 			    			 )
 			    		  .addGroup(layout.createParallelGroup(  )
 			    				  .addComponent(textEmail2)	
-			    	    		  .addComponent(textExplorationID2)
+			    				  
+			    				  .addGroup(layout.createSequentialGroup()
+			    						  .addComponent(textExplorationID2)
+			    						  .addComponent(genID2Button)
+			    						  )
+			    	    		  
 			    	    		  .addGroup(layout.createSequentialGroup()
 			    	    				  .addComponent(textConclusion2)
 			    	    				  .addComponent(openConclusion)
@@ -461,7 +458,11 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 			   .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
 			   
 					  .addComponent(labelExplorationID2)	
-					  .addComponent(textExplorationID2)	
+					  	
+					  .addGroup(layout.createParallelGroup( GroupLayout.Alignment.BASELINE )
+							  .addComponent(genID2Button)
+							  .addComponent(textExplorationID2)	
+					  )
 				 )
 			   .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE )
 					  .addComponent(labelConclusion2)
