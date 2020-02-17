@@ -8,6 +8,8 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Files;
@@ -15,8 +17,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -107,10 +111,35 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	private Channel channel = null;
 	private Connection connection = null;
 	
-	public CabinetInit() {
+	String host = null;
+  String login =null;
+  String password = null;
+  
+	public CabinetInit( String[] args ) {
 		
 		super( PROG_CAPTION );
-	
+		
+	  if (args != null && args.length > 0) {
+	    Properties props = new Properties();
+	    try (FileInputStream fis = new FileInputStream( args[0] )) {
+	      props.load(fis);
+	      host = props.getProperty("rabbitmq-host");
+	      login =  props.getProperty("rabbitmq-login");
+	      password = props.getProperty("rabbitmq-password");
+	      
+	    } catch (FileNotFoundException e) {
+	      JOptionPane.showMessageDialog(null, "Message error : Where is config file?");
+	      exit() ;
+      } catch (IOException e) {
+        JOptionPane.showMessageDialog(null, "Message error : Where is config file?");
+        exit() ;
+      }
+    } else {
+      JOptionPane.showMessageDialog(null, "Message error : Where is config file?");
+      exit() ;
+       ;
+    }
+   
 		initResponceCommands( (s) -> JOptionPane.showMessageDialog(this, s) );
 	
 		initControls();
@@ -140,7 +169,9 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		
 	}
 
-
+	protected static void exit() {
+    System.exit(0);
+  }
 	private void say_connection_active( BiConsumer<String,String> callback, String host, String msg ) {
 		
 		callback.accept(host, msg);
@@ -562,6 +593,8 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		factory.setPort( 5672 );
 		connection = factory.newConnection();
 		channel = connection.createChannel();
+		
+		
 		channel.queueDeclare("localin", true, false, false, null);
 		channel.queueDeclare("localout", true, false, false, null);
 
@@ -572,16 +605,19 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		};
 		channel.basicConsume("localout", true, deliverCallback, consumerTag -> {});
 
-		System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
+		
 	}
-
+	private  void rabbitmq_subscribe() {
+	  
+	  
+	}
 	public String getGreeting() {
 		return "Hello world.";
 	}
 	public static void main(String[] args) {
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
-				new CabinetInit();
+				new CabinetInit(  args );
 			}
 		});
 	}

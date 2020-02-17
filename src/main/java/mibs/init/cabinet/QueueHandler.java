@@ -69,13 +69,11 @@ interface QueueHandler {
 	
 	ResourceBundle bundle = ResourceBundleUTF8.getBundle("application");;
 	
-	ResourceBundle config = ResourceBundle.getBundle("config");;
+	//ResourceBundle config = ResourceBundle.getBundle("config");;
 	
 	String PROG_CAPTION = bundle.getString("MAIN_CAPTION");
 	
-	String host = config.getString("rabbitmq-host");
-	String login =config.getString("rabbitmq-login");
-	String password =config.getString("rabbitmq-password");
+	
 	
 	
 	Map< String, Consumer< RabbitmqCommandMessage< ? extends Serializable > > > responceCommands = new TreeMap<>() ;
