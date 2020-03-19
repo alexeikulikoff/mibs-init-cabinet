@@ -20,8 +20,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -110,11 +116,32 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 	
 	private Channel channel = null;
 	private Connection connection = null;
+	private Optional<Channel>  optChannel ;
 	
 	String host = null;
   String login =null;
   String password = null;
   
+ 
+  class RabbitConnector implements Callable<String>{
+   
+    @Override
+    public String call()  {
+      try {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost( host );
+        factory.setUsername( login );
+        factory.setPassword( password );
+        factory.setPort( 5672 );
+        connection = factory.newConnection();
+        channel = connection.createChannel();
+        return  CONNECTION_ACTIVATED;
+      }catch( Exception e) {
+        return  ERROR_CONNECTION ;
+      }
+    }
+    
+  }
 	public CabinetInit( String[] args ) {
 		
 		super( PROG_CAPTION );
@@ -156,19 +183,56 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 		//setResizable(false);
 		
 		try {
-			
-			init_rabbitmq_connection_and_subscribe( host, login, password);
-			
-			say_connection_active( (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( CONNECTION_ACTIVATED ), host );
-			
-		} catch (IOException e) {
-			say_connection_error(  (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_CONNECTION ), host  );
-		} catch (TimeoutException e) {
-			say_connection_error(  (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_CONNECTION ), host  );
-		}
-		
+		    say_connection_active( (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( CONNECTION_ATTEMPT ), host );
+		    init_rabbitmq_connection( host, login, password , 
+		        (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( CONNECTION_ACTIVATED ),
+		        (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_CONNECTION )
+		        );
+		    } catch (Exception e) {
+          say_connection_error(  (u,v) -> statusLabel.setText( MessageFormat.format( u , v)), bundle.getString( ERROR_CONNECTION ), host  );
+        } 
 	}
+	
+	
+	private  void init_rabbitmq_connection(String host, String user, String password, BiConsumer<String,String> callbackSuccess,String success, BiConsumer<String,String> callbackError, String error )  {
+		  ExecutorService service = Executors.newSingleThreadExecutor();
+		  service.execute( new Runnable() {
+        @Override
+        public void run() {
+          ConnectionFactory factory = new ConnectionFactory();
+          factory.setHost( host );
+          factory.setUsername( login );
+          factory.setPassword( password );
+          factory.setPort( 5672 );
+          try {
+            connection = factory.newConnection();
+            channel = connection.createChannel();
+            optChannel = Optional.of(channel);
+            rabbitmq_subscribe();
+            callbackSuccess.accept( success, host );
+          } catch (Exception e) {
+            callbackError.accept( error , host);
+          }
+        }
+		  });
+  }
+	private  void rabbitmq_subscribe() throws IOException {
+    
+	  System.out.println("Try to Subscrib...");
+	  if (!optChannel.isPresent()) return ;
+	  
+    channel.queueDeclare("localin", true, false, false, null);
+    channel.queueDeclare("localout", true, false, false, null);
 
+    @SuppressWarnings("unchecked")
+    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+      RabbitmqCommandMessage<?> msg = (RabbitmqCommandMessage<?>) SerializationUtils.deserialize( delivery.getBody() );
+      responceCommands.get( msg.getCommand() ).accept( (RabbitmqCommandMessage<? extends Serializable> ) msg );
+    };
+    channel.basicConsume("localout", true, deliverCallback, consumerTag -> {});
+    System.out.println("Subscribed");
+    
+  }
 	protected static void exit() {
     System.exit(0);
   }
@@ -584,33 +648,8 @@ public class CabinetInit extends JFrame implements ActionListener, QueueHandler 
 			);
 	}
 	
-	private  void init_rabbitmq_connection_and_subscribe(String host, String user, String password) throws IOException, TimeoutException {
-
-		ConnectionFactory factory = new ConnectionFactory();
-		factory.setHost( host );
-		factory.setUsername( user );
-		factory.setPassword( password );
-		factory.setPort( 5672 );
-		connection = factory.newConnection();
-		channel = connection.createChannel();
-		
-		
-		channel.queueDeclare("localin", true, false, false, null);
-		channel.queueDeclare("localout", true, false, false, null);
-
-		@SuppressWarnings("unchecked")
-		DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-			RabbitmqCommandMessage<?> msg = (RabbitmqCommandMessage<?>) SerializationUtils.deserialize( delivery.getBody() );
-			responceCommands.get( msg.getCommand() ).accept( (RabbitmqCommandMessage<? extends Serializable> ) msg );
-		};
-		channel.basicConsume("localout", true, deliverCallback, consumerTag -> {});
-
-		
-	}
-	private  void rabbitmq_subscribe() {
-	  
-	  
-	}
+	
+	
 	public String getGreeting() {
 		return "Hello world.";
 	}
